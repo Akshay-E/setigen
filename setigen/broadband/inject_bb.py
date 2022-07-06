@@ -534,7 +534,7 @@ class inj_broadband(object):
         """
         
         if profile is None:
-            profile=broadband.gauss(a=self.snr, width=self.width)
+            profile=inj_broadband.gauss(a=self.snr, width=self.width)
             logger.info("Created default pulse profile")
         else:
             self.width=len(profile)
@@ -722,7 +722,7 @@ class inj_broadband(object):
 
         t = np.arange(frame.tchans)
         t2d, tdel2d = np.meshgrid(t, t0_in_samps)
-        profile = broadband.gauss(t2d, tdel2d, width_in_chans, rms)
+        profile = inj_broadband.gauss(t2d, tdel2d, width_in_chans, rms)
         
         if b_type=='N':
             pass
