@@ -20,7 +20,7 @@ from ..voltage import raw_utils
 #import setigen as stg 
 import logging
 import matplotlib.pyplot as plt
-
+'''
 logger = logging.getLogger()
 fhandler = logging.FileHandler(filename='broadband_log.log', mode='w')
 logger.addHandler(fhandler)
@@ -28,7 +28,13 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(lineno)s - %(mess
 fhandler.setFormatter(formatter)
 level_log = logging.INFO
 logging.basicConfig( level=level_log)
+'''
+logging.basicConfig(filename="setigen_bb.log",
+                    format='%(asctime)s - %(levelname)s - %(lineno)s - %(message)s',
+                    filemode='w')
 
+logger = logging.getLogger() 
+logger.setLevel(logging.INFO)
 
 class inj_broadband(object):
     
