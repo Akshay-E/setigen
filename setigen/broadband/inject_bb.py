@@ -26,6 +26,9 @@ fhandler = logging.FileHandler(filename='broadband_log.log', mode='w')
 logger.addHandler(fhandler)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(lineno)s - %(message)s')
 fhandler.setFormatter(formatter)
+level_log = logging.INFO
+logging.basicConfig( level=level_log)
+
 
 class inj_broadband(object):
     
