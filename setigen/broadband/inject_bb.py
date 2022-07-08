@@ -501,23 +501,49 @@ class inj_broadband(object):
             logger.info(f"File handler starting from {self.file_handler.tell()}")
 
             block_cmplx=self.collect_data()
-            
-            for i in range(self.raw_params['num_chans']):
 
-                s= int(self.num_pols * td_in_samps[i])
-                e= int(s +  self.num_pols*self.width)
-
-                block_cmplx[i][s:e:self.num_pols]*=pulse_profile
+            if self.num_pols==2:
+                logger.info(f"Generating delays in POL1")
+                block_cmplx[:,::2]= self.multiply_profile(block_cmplx[:,::2], pulse_profile, td_in_samps)
                 
-                if self.num_pols==2:
-                    
-                    block_cmplx[i][s+1:e+1:self.num_pols]*=pulse_profile
-            
-            logger.info(f"Generated delays between channels")
-            
+                logger.info(f"Generating delays in POL2")
+                block_cmplx[:,1::2]= self.multiply_profile(block_cmplx[:,1::2], pulse_profile, td_in_samps)
+                
+            else:
+                logger.info(f"Generating delays ")
+                block_cmplx= self.multiply_profile(block_cmplx, pulse_profile, td_in_samps)
+                                    
             self.write_blocks(block_cmplx)
-            
             logger.info(f"Dispersion by sample shifting complete!")
+    
+    
+    def multiply_profile(self, data, profile, delay):
+        """
+        Function to multiply complex time series with pulse profile according to time delay in samples between channels.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            Array of raw complex voltages
+        
+        profile : array
+            The pulse profile
+
+        delay : array
+            Time delay in sample between channels
+
+        Returns
+        -------
+        data : numpy.ndarray
+            Array of raw complex voltages with the injected broadband signal.  
+        """
+        
+        for i in range(self.raw_params['num_chans']):
+            s= int(delay[i])
+            e= int(delay[i]+self.width)
+            data[i][s:e]*=profile
+
+        return(data)
             
 #Common Functions
             
@@ -583,7 +609,7 @@ class inj_broadband(object):
         if to is None:
             to=self.blocks_to_read
             
-        logger.info(f"Collecting data from block {_from} to {_from+to-1}")
+        logger.info(f"Collecting data from block {_from} to {_from+to-1}, ({to} block/s)")
         
         block= (np.frombuffer(self.file_handler.read(self.block_read_size),offset=self.header_size
                               , dtype=np.int8)).reshape(self.raw_params['num_chans'],self.chan_size)
