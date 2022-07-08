@@ -192,28 +192,34 @@ class inj_broadband(object):
             2D array of impulse response for the data
 
         """
-        def to_numpy_array(data):
-                try:
-                    return xp.asnumpy(v)
-                except AttributeError:
-                    return data
+        logger.info(f"Generating impulse response array for {self.raw_params['num_chans']} channels")
         
-        f_coarse_dev=np.linspace(0,np.abs(self.obs_bw),self.raw_params['num_chans'], endpoint=False)
+        f_coarse_dev=xp.linspace(0,np.abs(self.obs_bw),self.raw_params['num_chans'], endpoint=False)
+        K=2 * np.pi * self.D *1e6 * self.dm / self.f_low**2
+        fl0 = xp.linspace(0,np.abs(self.raw_params['chan_bw']), imp_length, endpoint=False)
         H=np.empty((self.raw_params['num_chans'], imp_length), dtype=complex)
         
-        for i in range(self.raw_params['num_chans']):
-            
-            K=2 * xp.pi * self.D *1e6 * self.dm / self.f_low**2
+        if GPU_FLAG=='1':
+            try:
+                for i in range(self.raw_params['num_chans']):
+                    fl=fl0 + f_coarse_dev[i]
+                    V=(fl**2/(fl + self.f_low))
+                    H[i]= xp.asnumpy( xp.fft.ifft ( xp.exp(1j * K * (V ) )))
 
-            fl = xp.linspace(0,np.abs(self.raw_params['chan_bw']), imp_length, endpoint=False) + f_coarse_dev[i]
-            V=fl**2/(fl + self.f_low)
-            
-            H[i]= to_numpy_array( xp.fft.ifft ( xp.exp(1j * K * V ) ))
-        
+            except AttributeError:
+                logger.warning(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
+                fl=fl0 + f_coarse_dev[:, None]
+                V=(fl**2/(fl + self.f_low))
+                H=scipy.fft.ifft( xp.exp(1j* K * V ) )
+        else:
+            logger.debug("GPU not enabled. Set (os.environ['SETIGEN_ENABLE_GPU'] = '1') in Python to enable GPU")
+            fl=fl0 + f_coarse_dev[:, None]
+            V=(fl**2/(fl + self.f_low))
+            H=scipy.fft.ifft( xp.exp(1j* K * V ) )
         if not self.raw_params['ascending']:
             H=np.flip(H, axis=0)
-        
-        logger.info(f"Generated impulse response array for {self.raw_params['num_chans']} channels")
+                    
+        logger.info(f"Generated impulse response.")
         
         return(H)
         
@@ -381,6 +387,7 @@ class inj_broadband(object):
             Convolved complex output 
 
         """
+        log.info("Performing convolution")
         if GPU_FLAG==1:
             try:
                 from cupyx.scipy import signal
@@ -389,16 +396,14 @@ class inj_broadband(object):
                     dispersed_ts=np.empty((data_cmplx.shape), dtype=complex)
                 else:
                     dispersed_ts=np.empty((data_cmplx.shape[0], data_cmplx.shape[1] - response.shape[1]+1), dtype=complex) 
-
                 for i in range(self.raw_params['num_chans']):
                     dispersed_ts[i]=xp.asnumpy(signal.fftconvolve(xp.array(data_cmplx[i]), xp.array(response[i]), mode=mode))    
 
             except ImportError:
-
                 logger.warning(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
                 dispersed_ts=scipy.signal.fftconvolve(data_cmplx, response, mode=mode, axes=1)
         else:
-            logger.debug(f"GPU not enabled")
+            logger.debug(f"GPU not enabled. Set (os.environ['SETIGEN_ENABLE_GPU'] = '1') in Python to enable GPU")
             dispersed_ts=scipy.signal.fftconvolve(data_cmplx, response, mode=mode, axes=1)
 
         logger.info(f"Convolution complete")
