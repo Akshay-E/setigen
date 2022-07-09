@@ -16,7 +16,7 @@ import astropy.units as u
 import warnings
 import scipy
 #from setigen.voltage import raw_utils
-from ..voltage import raw_utils
+from . import raw_utils
 #import setigen as stg 
 import logging
 import matplotlib.pyplot as plt
