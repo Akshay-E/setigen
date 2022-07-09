@@ -89,7 +89,7 @@ class inj_broadband(object):
         self.file_params()
         
         print(f" Adjusted injection time for channel {self.f_low + abs(self.obs_bw)} MHz {round(self.adjusted_pulse_time,3)}")
-        logger.info("Object initialisation passed")
+        # logger.info("Object initialisation passed")
         
     
     def calc_smear(self,x=2):
@@ -207,7 +207,7 @@ class inj_broadband(object):
                     H[i]= xp.asnumpy( xp.fft.ifft ( xp.exp(1j * K * (V ) )))
 
             except AttributeError:
-                logger.warning(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
+                logger.debug(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
                 fl=fl0 + f_coarse_dev[:, None]
                 V=(fl**2/(fl + self.f_low))
                 H=scipy.fft.ifft( xp.exp(1j* K * V ) )
@@ -400,7 +400,7 @@ class inj_broadband(object):
                     dispersed_ts[i]=xp.asnumpy(signal.fftconvolve(xp.array(data_cmplx[i]), xp.array(response[i]), mode=mode))    
 
             except ImportError:
-                logger.warning(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
+                logger.debug(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
                 dispersed_ts=scipy.signal.fftconvolve(data_cmplx, response, mode=mode, axes=1)
         else:
             logger.debug(f"GPU not enabled. Set (os.environ['SETIGEN_ENABLE_GPU'] = '1') in Python to enable GPU")
