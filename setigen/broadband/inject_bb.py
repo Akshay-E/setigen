@@ -388,7 +388,7 @@ class inj_broadband(object):
 
         """
     
-        if GPU_FLAG==1:
+        if GPU_FLAG=='1':
             try:
                 from cupyx.scipy import signal
 
