@@ -50,7 +50,7 @@ class inj_broadband(object):
         ----------
         input_file_stem : str
             Filename or path stem to input RAW data 
-        pulse_time : int
+        pulse_time : float
             Start time for injected signal
         dm : float, optional
             Dispersion measure. The default is 100.
@@ -79,7 +79,7 @@ class inj_broadband(object):
         self.width=int(width)
         self.snr=snr
         self.D=4.148808e3
-        self.pulse_time=int(pulse_time)
+        self.pulse_time=float(pulse_time)
         
         assert self.pulse_time > 0 , f"injection time cannot be 0"
         assert self.pulse_time < self.raw_params['obs_length'], f"injection time cannot be greater than length of file( {self.raw_params['obs_length']}) "
@@ -387,7 +387,7 @@ class inj_broadband(object):
             Convolved complex output 
 
         """
-        log.info("Performing convolution")
+        logger.info("Performing convolution")
         if GPU_FLAG==1:
             try:
                 from cupyx.scipy import signal
