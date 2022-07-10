@@ -34,7 +34,7 @@ logging.basicConfig(filename="setigen_bb.log",
                     filemode='w')
 
 logger = logging.getLogger() 
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 class inj_broadband(object):
     
@@ -326,7 +326,7 @@ class inj_broadband(object):
             h=self.imp_res( impulse_len)
             
             logger.info(f"Shape before padding {shape}. Shape after padding {block_cmplx.shape}. Shape will be same if incomplete data points for padding.")
-            logger.info(f"Performing convolution of complex time series with impulse response of ISM")
+            logger.info(f"Convolving complex time series with impulse response of ISM")
     
             if self.num_pols==2:
                 
@@ -387,7 +387,7 @@ class inj_broadband(object):
             Convolved complex output 
 
         """
-        logger.info("Performing convolution")
+    
         if GPU_FLAG==1:
             try:
                 from cupyx.scipy import signal
