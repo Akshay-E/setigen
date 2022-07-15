@@ -20,15 +20,8 @@ from ..voltage import raw_utils
 #import setigen as stg 
 import logging
 import matplotlib.pyplot as plt
-'''
-logger = logging.getLogger()
-fhandler = logging.FileHandler(filename='broadband_log.log', mode='w')
-logger.addHandler(fhandler)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(lineno)s - %(message)s')
-fhandler.setFormatter(formatter)
-level_log = logging.INFO
-logging.basicConfig( level=level_log)
-'''
+
+
 logging.basicConfig(filename="setigen_bb.log",
                     format='%(asctime)s - %(levelname)s - %(lineno)s - %(message)s',
                     filemode='w')
@@ -207,12 +200,12 @@ class inj_broadband(object):
                     H[i]= xp.asnumpy( xp.fft.ifft ( xp.exp(1j * K * (V ) )))
 
             except AttributeError:
-                logger.debug(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
+                logger.warn(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
                 fl=fl0 + f_coarse_dev[:, None]
                 V=(fl**2/(fl + self.f_low))
                 H=scipy.fft.ifft( xp.exp(1j* K * V ) )
         else:
-            logger.debug("GPU not enabled. Set (os.environ['SETIGEN_ENABLE_GPU'] = '1') in Python to enable GPU")
+            logger.warn("GPU not enabled. Set (os.environ['SETIGEN_ENABLE_GPU'] = '1') in Python to enable GPU")
             fl=fl0 + f_coarse_dev[:, None]
             V=(fl**2/(fl + self.f_low))
             H=scipy.fft.ifft( xp.exp(1j* K * V ) )
@@ -266,7 +259,7 @@ class inj_broadband(object):
             return(padded_block, mode)
     
 
-    def disperse(self, op_dir=None, profile=None, plot=False, plot_alt=None):
+    def disperse(self, op_file_stem=None, profile=None, plot=False, plot_alt=None):
         """
         Function to collect raw voltage data, inject a natural broadband signal by convolving the complex time series with impulse response of ISM
         and output to a GUPPI RAW file.
@@ -275,8 +268,8 @@ class inj_broadband(object):
 
         Parameters
         ----------
-        op_dir : str, optional
-            Full path to the output directory. Filename will be automatically appended. Default is current working directory.
+        op_file_stem : str, optional
+            Full path to the output file stem. Suffix will be automatically appended. Default is current working directory.
         profile : array, optional
             User generated pulse prolfile. The default pulse profile generated is a single gaussian spanning the input width and peak at input snr.
         plot : bool, optional
@@ -297,7 +290,7 @@ class inj_broadband(object):
         
         """
         
-        path, pulse_profile= self.dispatcher(op_dir, profile)
+        path, pulse_profile= self.dispatcher(op_file_stem, profile)
         impulse_len=int(np.ceil(self.smear/self.raw_params['tbin']))
         
         logger.info(f"impulse length in samples: {impulse_len}")
@@ -326,7 +319,6 @@ class inj_broadband(object):
             h=self.imp_res( impulse_len)
             
             logger.info(f"Shape before padding {shape}. Shape after padding {block_cmplx.shape}. Shape will be same if incomplete data points for padding.")
-            logger.info(f"Performing convolution of complex time series with impulse response of ISM")
     
             if self.num_pols==2:
                 
@@ -387,8 +379,8 @@ class inj_broadband(object):
             Convolved complex output 
 
         """
-        logger.info("Performing convolution")
-        if GPU_FLAG==1:
+        logger.info(f"Performing convolution of complex time series with impulse response of ISM")
+        if GPU_FLAG=='1':
             try:
                 from cupyx.scipy import signal
 
@@ -400,10 +392,10 @@ class inj_broadband(object):
                     dispersed_ts[i]=xp.asnumpy(signal.fftconvolve(xp.array(data_cmplx[i]), xp.array(response[i]), mode=mode))    
 
             except ImportError:
-                logger.debug(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
+                logger.warn(f"Recommended to install CuPy. This is not necessary for injection, but will highly accelerate the pipeline")
                 dispersed_ts=scipy.signal.fftconvolve(data_cmplx, response, mode=mode, axes=1)
         else:
-            logger.debug(f"GPU not enabled. Set (os.environ['SETIGEN_ENABLE_GPU'] = '1') in Python to enable GPU")
+            logger.warn(f"GPU not enabled. Set (os.environ['SETIGEN_ENABLE_GPU'] = '1') in Python to enable GPU")
             dispersed_ts=scipy.signal.fftconvolve(data_cmplx, response, mode=mode, axes=1)
 
         logger.info(f"Convolution complete")
@@ -438,7 +430,7 @@ class inj_broadband(object):
         return(samples_to_shift)
 
     
-    def sample_shift(self, x=2 , b_type='N', op_dir=None, profile=None):
+    def sample_shift(self, x=2 , b_type='N', op_file_stem=None, profile=None):
         """
         Function to collect raw voltage data, inject natural or artificial broadband signal and output to a GUPPI RAW file.
 
@@ -451,8 +443,8 @@ class inj_broadband(object):
             The default is 'N'.
             'N': Broadband signal with natural dispersion
             'A1', 'A2', 'A3': Broadband signal with artificial dispersion (flipped time axis, frequency axis or both)
-        op_dir : str, optional
-            Full path to the output directory. Filename will be automatically appended. Default is current working directory.
+        op_file_stem : str, optional
+            Full path to the output file stem. Suffix will be automatically appended. Default is current working directory.
         profile : array, optional
             User generated pulse prolfile. The default pulse profile generated is a single gaussian spanning the input width and peak at input snr.
 
@@ -472,7 +464,7 @@ class inj_broadband(object):
 
         """
         
-        path, pulse_profile= self.dispatcher(op_dir, profile)
+        path, pulse_profile= self.dispatcher(op_file_stem, profile)
         chan_flip=False
         
         if b_type=='N':
@@ -552,14 +544,14 @@ class inj_broadband(object):
             
 #Common Functions
             
-    def dispatcher(self, op_dir, profile):
+    def dispatcher(self, op_file_stem, profile):
         """
         A common function to generate default pulse profile if not provided by the user, append the output path and duplicate the file. 
 
         Parameters
         ----------
-        op_dir : str, optional
-            Full path to the output directory. Filename will be automatically appended. Default is current working directory.
+        op_file_stem : str, optional
+            Full path to the output file stem. Suffix will be automatically appended. Default is current working directory.
 
         profile : array, optional
             User generated pulse prolfile. The default pulse profile generated is a single gaussian spanning the input width and peak at input snr.
@@ -580,10 +572,10 @@ class inj_broadband(object):
             self.width=len(profile)
             logger.info("User defined pulse profile")
         
-        if op_dir is None:
+        if op_file_stem is None:
             path=os.path.join(os.getcwd(), f"{self.input_file_stem.split('/')[-1]}_dispersed.0000.raw")
         else:
-            path=os.path.join(op_dir, f"{self.input_file_stem.split('/')[-1]}_dispersed.0000.raw")
+            path= op_file_stem + str(".0000.raw")
         
         shutil.copyfile(f'{self.input_file_stem}.0000.raw', path )
         logger.info("Created duplicate file")
@@ -719,7 +711,7 @@ class inj_broadband(object):
         
     
     @classmethod
-    def disperse_filterbank(cls, frame, params, b_type='N', save=True, op_dir=None):
+    def disperse_filterbank(cls, frame, params, b_type='N', save=True, op_file=None):
         """
         Function to inject natural and artificial broadband signals in intensity domain.
 
@@ -737,8 +729,8 @@ class inj_broadband(object):
             'A1', 'A2', 'A3': Broadband signal with artificial dispersion (flipped time axis, frequency axis or both)
         save : bool, optional
             Save the frame with injected signal as a filterbank file . The default is True.
-        op_dir : str, optional
-            Full path to the output directory. Filename will be automatically appended (dispersed_frame.fil). Default is current working directory.
+        op_file : str, optional
+            Full path to the output file. Default is current working directory.
 
         Returns
         -------
@@ -779,10 +771,10 @@ class inj_broadband(object):
         frame.plot()
         
         if save:
-            if op_dir is None:
+            if op_file is None:
                 loc= os.path.join(os.getcwd(), 'dispersed_frame.fil')
             else:
-                loc= os.path.join(op_dir, 'dispersed_frame.fil')
+                loc= op_file + str('.fil')
                 
             frame.save_fil(filename = loc)
 
